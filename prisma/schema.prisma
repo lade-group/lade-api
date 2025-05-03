@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String  @id @default(uuid())
+  name             String
+  middle_name      String?
+  father_last_name String
+  mother_last_name String
+  phone            String  @unique
+  email            String  @unique
+  password         String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  teams          UsersOnTeams[]
+  TeamInvitation TeamInvitation[]
+}
+
+model Team {
+  id String @id @default(uuid())
+
+  name     String
+  logo     String
+  joinCode String? @unique
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  users          UsersOnTeams[]
+  Client         Client[]
+  TeamInvitation TeamInvitation[]
+  Subscription   Subscription?
+}
+
+model UsersOnTeams {
+  User      User     @relation(fields: [userId], references: [id])
+  userId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    String
+  rol       Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  @@id([userId, teamId])
+}
+
+model Address {
+  id              String   @id @default(uuid())
+  street          String
+  exterior_number String
+  interior_number String?
+  neighborhood    String
+  city            String
+  state           String
+  country         String
+  postal_code     String
+  created_at      DateTime @default(now())
+
+  teams  Team[]
+  Client Client[]
+}
+
+model Client {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id])
+  name        String
+  description String?
+  rfc         String
+  email       String
+  phone       String
+  addressId   String
+  address     Address  @relation(fields: [addressId], references: [id])
+  cfdiUse     String
+  taxRegime   String
+  zipCode     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contacts Contact[]
+}
+
+model TeamInvitation {
+  userId String
+  teamId String
+
+  user User @relation(fields: [userId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@id([userId, teamId])
+}
+
+model Contact {
+  id        String      @id @default(uuid())
+  clientId  String
+  client    Client      @relation(fields: [clientId], references: [id])
+  type      ContactType
+  value     String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  teamId    String             @unique
+  team      Team               @relation(fields: [teamId], references: [id])
+  status    SubscriptionStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  startsAt  DateTime
+  expiresAt DateTime
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  CANCELLED
+}
+
+enum Role {
+  USER
+  ADMIN
+  OWNER
+}
+
+enum ContactType {
+  EMAIL
+  PHONE
+  FAX
+  OTHER
+}
