@@ -46,7 +46,7 @@ export class TeamController {
     return this.teamService.deleteTeam(teamId, req.user.userId);
   }
 
-  @Auth('OWNER')
+  @Auth('OWNER')  
   @Delete(':teamId/users/:userId')
   removeUser(
     @Param('teamId') teamId: number,
