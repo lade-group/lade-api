@@ -6,6 +6,7 @@ import { BcryptModule } from '@/common/bcrypt/bcrypt.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '@/utils/strategies/jwt.strategy';
 import { JwtAuthGuard } from '@/utils/guards/jwt-auth.guard';
+import { GoogleStrategy } from '@/utils/strategies/google.strategy';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { JwtAuthGuard } from '@/utils/guards/jwt-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, GoogleStrategy],
 })
 export class AuthModule {}

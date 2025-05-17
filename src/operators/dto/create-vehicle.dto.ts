@@ -1,13 +1,14 @@
-import { IsString, IsInt, IsOptional } from 'class-validator';
+import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { VehicleStatus } from '@prisma/client';
 
-export class CreateUnitDto {
+export class CreateVehicleDto {
   @ApiProperty({
     example: 'ABC1234',
     description: 'Número de placa de la unidad (único)',
   })
   @IsString()
-  plateNumber: string;
+  plate: string;
 
   @ApiProperty({ example: 'FH16', description: 'Modelo del vehículo' })
   @IsString()
@@ -42,4 +43,15 @@ export class CreateUnitDto {
   })
   @IsString()
   teamId: string;
+
+  @ApiProperty({ enum: VehicleStatus, example: 'DISPONIBLE' })
+  @IsEnum(VehicleStatus)
+  status: VehicleStatus;
+
+  @ApiProperty({
+    example: 'url',
+    description: 'URL generada por AWS',
+  })
+  @IsString()
+  imageUrl: string;
 }

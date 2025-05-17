@@ -1,9 +1,9 @@
 import {
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   ValidateNested,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from '@/geolocation/dto/create-address.dto';
@@ -25,6 +25,11 @@ export class CreateTeamDto {
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;
 
-  @IsInt()
-  userId: number;
+  @IsString()
+  userId: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  invites?: string[];
 }

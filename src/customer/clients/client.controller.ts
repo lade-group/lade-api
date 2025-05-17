@@ -39,15 +39,21 @@ export class ClientController {
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'search', required: false, type: String, example: 'ana' })
+  @ApiQuery({ name: 'status', required: false, example: 'Activo' })
+  @ApiQuery({ name: 'teamId', required: true, example: 'uuid-del-team' })
   async findAll(
     @Query('page') page: string,
     @Query('limit') limit: string,
+    @Query('teamId') teamId: string,
     @Query('search') search?: string,
+    @Query('status') status?: string,
   ) {
     return this.clientService.getPaginatedClients(
       parseInt(page) || 1,
       parseInt(limit) || 10,
+      teamId,
       search,
+      status,
     );
   }
 
@@ -55,6 +61,8 @@ export class ClientController {
   @Auth()
   @ApiOperation({ summary: 'Obtener cliente por ID' })
   @ApiParam({ name: 'id', required: true })
+  @ApiResponse({ status: 200, description: 'Cliente encontrado' })
+  @ApiResponse({ status: 404, description: 'Cliente no encontrado' })
   async findOne(@Param('id') id: string) {
     return this.clientService.findById(id);
   }

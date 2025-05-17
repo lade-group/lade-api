@@ -24,8 +24,7 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  teams          UsersOnTeams[]
-  TeamInvitation TeamInvitation[]
+  teams UsersOnTeams[]
 }
 
 model Team {
@@ -42,6 +41,7 @@ model Team {
   Client         Client[]
   TeamInvitation TeamInvitation[]
   Subscription   Subscription?
+  Vehicle        Vehicle[]
 }
 
 model UsersOnTeams {
@@ -72,33 +72,39 @@ model Address {
 }
 
 model Client {
-  id          String   @id @default(uuid())
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id])
+  id String @id @default(uuid())
+
   name        String
   description String?
   rfc         String
   email       String
   phone       String
-  addressId   String
-  address     Address  @relation(fields: [addressId], references: [id])
   cfdiUse     String
   taxRegime   String
   zipCode     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      ClientStatus @default(ACTIVE)
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
 
   contacts Contact[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
 model TeamInvitation {
-  userId String
-  teamId String
+  id        String   @id @default(uuid())
+  email     String
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
-  team Team @relation(fields: [teamId], references: [id])
-
-  @@id([userId, teamId])
+  @@unique([email, teamId])
 }
 
 model Contact {
@@ -122,6 +128,30 @@ model Subscription {
   expiresAt DateTime
 }
 
+model Vehicle {
+  id        String        @id @default(uuid())
+  teamId    String
+  team      Team          @relation(fields: [teamId], references: [id])
+  plate     String        @unique
+  brand     String
+  year      Int
+  vin       String?
+  model     String
+  type      String
+  status    VehicleStatus @default(DISPONIBLE)
+  imageUrl  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+enum VehicleStatus {
+  DISPONIBLE
+  EN_USO
+  MANTENIMIENTO
+  CANCELADO
+  DESUSO
+}
+
 enum SubscriptionStatus {
   ACTIVE
   EXPIRING_SOON
@@ -133,6 +163,12 @@ enum Role {
   USER
   ADMIN
   OWNER
+}
+
+enum ClientStatus {
+  ACTIVE
+  DELETED
+  CANCELLED
 }
 
 enum ContactType {

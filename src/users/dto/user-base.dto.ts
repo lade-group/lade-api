@@ -36,4 +36,6 @@ export class UserBaseDto {
   @ApiProperty({ example: 'juan.perez@example.com' })
   @IsEmail()
   email: string;
+
+  
 }

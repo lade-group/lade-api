@@ -1,8 +1,18 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { CreateUserDto } from '@/users/dto/create-user.dto';
 import { AuthService } from '@/users/auth/auth.service';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { LoginDto } from '../dto/login.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -24,5 +34,21 @@ export class AuthController {
   @Post('refresh-token')
   async refresh(@Body('refreshToken') token: string) {
     return this.authService.refreshToken(token); // limpio, sin lógica ni try/catch
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Req() req) {
+    console.log(req);
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
+    const jwt = await this.authService.loginWithGoogle(req.user);
+
+    res.redirect(
+      `http://localhost:5173/login/success?token=${jwt.accessToken}&refresh=${jwt.refreshToken}`,
+    );
   }
 }

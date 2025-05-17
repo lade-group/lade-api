@@ -41,6 +41,10 @@ export class CreateClientDto {
   zipCode: string;
 
   @ApiProperty()
+  @IsString()
+  teamId: string;
+
+  @ApiProperty()
   @ValidateNested()
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;

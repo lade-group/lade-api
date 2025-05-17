@@ -38,7 +38,7 @@ export class RolesGuard implements CanActivate {
       where: {
         userId_teamId: {
           userId: user.userId,
-          teamId: Number(teamId),
+          teamId: teamId,
         },
       },
     });

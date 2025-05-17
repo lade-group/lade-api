@@ -7,6 +7,7 @@ import {
   Patch,
   Param,
   Delete,
+  Request,
 } from '@nestjs/common';
 import { Auth } from '@/utils/decorators/auth.decorator';
 import { UsersService } from '@/users/users/users.service';
@@ -20,5 +21,17 @@ export class UsersController {
   @Patch('profile')
   updateProfile(@Req() req, @Body() dto: UpdateUserDto) {
     return this.usersService.updateUser(req.user.userId, dto);
+  }
+
+  @Auth()
+  @Get('profile')
+  async getProfile(@Request() req) {
+    const jwtUser = req.user;
+    const user = await this.usersService.findByIdWithTeams(jwtUser.userId);
+
+    return {
+      ...jwtUser,
+      ...user,
+    };
   }
 }

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DriversModule } from './drivers/drivers.module';
-import { UnitsModule } from './units/units.module';
+import { VehicleModule } from './vehicle/vehicle.module';
 
-@Module({ imports: [DriversModule, UnitsModule] })
+@Module({ imports: [DriversModule, VehicleModule] })
 export class OperatorsModule {}

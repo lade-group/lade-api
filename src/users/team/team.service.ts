@@ -8,12 +8,14 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { CreateTeamDto } from '../dto/create-team.dto';
 import { AddressService } from '@/geolocation/address/address.service';
 import { HandlePrismaError } from '@/utils/decorators/handle-prisma-errors';
+import { TeamAccessService } from './access.service';
 
 @Injectable()
 export class TeamService {
   constructor(
     private prisma: PrismaService,
     private readonly addressService: AddressService,
+    private readonly accessService: TeamAccessService,
   ) {}
 
   /**
@@ -24,18 +26,21 @@ export class TeamService {
    */
   @HandlePrismaError()
   async create(createTeamDto: CreateTeamDto) {
-    const { name, logo, address, userId } = createTeamDto;
+    const { name, logo, address, invites = [], userId } = createTeamDto;
+
     return this.prisma.$transaction(async (tx) => {
       const createdAddress = await this.addressService.create(address, tx);
+
       const createdTeam = await tx.team.create({
         data: {
           name,
-          logo,
+          logo: 'imagen guardada', // 👈 placeholder fijo
           address: {
             connect: { id: createdAddress.id },
           },
         },
       });
+
       await tx.usersOnTeams.create({
         data: {
           userId,
@@ -43,6 +48,11 @@ export class TeamService {
           rol: 'OWNER',
         },
       });
+
+      if (invites.length > 0) {
+        await this.accessService.inviteUsersToTeam(invites, createdTeam.id, tx);
+      }
+
       return { team: createdTeam, address: createdAddress };
     });
   }
@@ -54,7 +64,7 @@ export class TeamService {
    * @returns Array of team-user relationships with embedded user info
    */
   @HandlePrismaError()
-  async getTeamUsers(teamId: number) {
+  async getTeamUsers(teamId: string) {
     return this.prisma.usersOnTeams.findMany({
       where: { teamId },
       include: { User: true },
@@ -70,7 +80,7 @@ export class TeamService {
    * @returns The updated team
    */
   @HandlePrismaError()
-  async updateTeam(teamId: number, userId: number, data: any) {
+  async updateTeam(teamId: string, userId: string, data: any) {
     const team = await this.prisma.team.findUnique({ where: { id: teamId } });
     if (!team) throw new NotFoundException('Team not found');
 
@@ -95,7 +105,7 @@ export class TeamService {
    * @returns Success message after deletion
    */
   @HandlePrismaError()
-  async deleteTeam(teamId: number, userId: number) {
+  async deleteTeam(teamId: string, userId: string) {
     const membership = await this.prisma.usersOnTeams.findUnique({
       where: {
         userId_teamId: { userId, teamId },
@@ -121,9 +131,9 @@ export class TeamService {
    */
   @HandlePrismaError()
   async removeUserFromTeam(
-    teamId: number,
-    targetUserId: number,
-    actorUserId: number,
+    teamId: string,
+    targetUserId: string,
+    actorUserId: string,
   ) {
     const actor = await this.prisma.usersOnTeams.findUnique({
       where: { userId_teamId: { userId: actorUserId, teamId } },
@@ -139,6 +149,23 @@ export class TeamService {
     });
   }
 
+  async getTeamsForUser(userId: string) {
+    console.log(userId);
+    return this.prisma.usersOnTeams.findMany({
+      where: { userId },
+      include: {
+        team: {
+          include: {
+            address: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   /**
    * Transfers ownership of a team to another user. Demotes the current owner to ADMIN.
    *
@@ -149,9 +176,9 @@ export class TeamService {
    */
   @HandlePrismaError()
   async transferOwnership(
-    teamId: number,
-    newOwnerId: number,
-    currentOwnerId: number,
+    teamId: string,
+    newOwnerId: string,
+    currentOwnerId: string,
   ) {
     const current = await this.prisma.usersOnTeams.findUnique({
       where: { userId_teamId: { userId: currentOwnerId, teamId } },
@@ -187,7 +214,7 @@ export class TeamService {
    * @returns Success message
    */
   @HandlePrismaError()
-  async leaveTeam(teamId: number, userId: number) {
+  async leaveTeam(teamId: string, userId: string) {
     const member = await this.prisma.usersOnTeams.findUnique({
       where: { userId_teamId: { userId, teamId } },
     });

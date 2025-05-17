@@ -13,6 +13,7 @@ import { TeamService } from './team.service';
 import { TeamAccessService } from './access.service';
 import { CreateTeamDto } from '../dto/create-team.dto';
 import { Auth } from '@/utils/decorators/auth.decorator';
+import { ApiOperation, ApiBody } from '@nestjs/swagger';
 
 @Controller('teams')
 export class TeamController {
@@ -23,44 +24,54 @@ export class TeamController {
 
   @Auth()
   @Post()
-  async createTeam(@Body() createTeamDto: CreateTeamDto, @Req() req) {
+  @ApiOperation({ summary: 'Crear nuevo equipo' })
+  @ApiBody({ type: CreateTeamDto })
+  async createTeam(@Body() dto: CreateTeamDto, @Req() req) {
     const userId = req.user.userId;
-    return this.teamService.create({ ...createTeamDto, userId });
+    return this.teamService.create({ ...dto, userId });
   }
 
   @Auth('OWNER', 'ADMIN')
   @Get(':teamId/users')
-  getUsers(@Param('teamId') teamId: number) {
+  getUsers(@Param('teamId') teamId: string) {
     return this.teamService.getTeamUsers(teamId);
   }
 
   @Auth('OWNER')
   @Patch(':teamId')
-  updateTeam(@Param('teamId') teamId: number, @Req() req, @Body() body) {
+  updateTeam(@Param('teamId') teamId: string, @Req() req, @Body() body) {
     return this.teamService.updateTeam(teamId, req.user.userId, body);
   }
 
   @Auth('OWNER')
   @Delete(':teamId')
-  deleteTeam(@Param('teamId') teamId: number, @Req() req) {
+  deleteTeam(@Param('teamId') teamId: string, @Req() req) {
     return this.teamService.deleteTeam(teamId, req.user.userId);
   }
 
-  @Auth('OWNER')  
+  @Auth('OWNER')
   @Delete(':teamId/users/:userId')
   removeUser(
-    @Param('teamId') teamId: number,
-    @Param('userId') userId: number,
+    @Param('teamId') teamId: string,
+    @Param('userId') userId: string,
     @Req() req,
   ) {
     return this.teamService.removeUserFromTeam(teamId, userId, req.user.userId);
   }
 
+  @Auth()
+  @Get('mine')
+  async getUserTeams(@Req() req) {
+    const userId = req.user.userId;
+    console.log(userId);
+    return this.teamService.getTeamsForUser(userId);
+  }
+
   @Auth('OWNER')
   @Patch(':teamId/transfer-ownership/:newOwnerId')
   transferOwnership(
-    @Param('teamId') teamId: number,
-    @Param('newOwnerId') newOwnerId: number,
+    @Param('teamId') teamId: string,
+    @Param('newOwnerId') newOwnerId: string,
     @Req() req,
   ) {
     return this.teamService.transferOwnership(
@@ -72,7 +83,7 @@ export class TeamController {
 
   @Auth()
   @Delete(':teamId/leave')
-  leaveTeam(@Param('teamId') teamId: number, @Req() req) {
+  leaveTeam(@Param('teamId') teamId: string, @Req() req) {
     return this.teamService.leaveTeam(teamId, req.user.userId);
   }
 }
