@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { DriversController } from './drivers.controller';
+import { DriverController } from './drivers.controller';
+import { DriverService } from './drivers.service';
 
-@Module({ controllers: [DriversController] })
+@Module({ controllers: [DriverController], providers: [DriverService] })
 export class DriversModule {}

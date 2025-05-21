@@ -42,6 +42,7 @@ model Team {
   TeamInvitation TeamInvitation[]
   Subscription   Subscription?
   Vehicle        Vehicle[]
+  Driver         Driver[]
 }
 
 model UsersOnTeams {
@@ -69,6 +70,7 @@ model Address {
 
   teams  Team[]
   Client Client[]
+  Driver Driver[]
 }
 
 model Client {
@@ -109,8 +111,10 @@ model TeamInvitation {
 
 model Contact {
   id        String      @id @default(uuid())
-  clientId  String
-  client    Client      @relation(fields: [clientId], references: [id])
+  driverId  String?
+  clientId  String?
+  driver    Driver?     @relation(fields: [driverId], references: [id])
+  client    Client?     @relation(fields: [clientId], references: [id])
   type      ContactType
   value     String
   createdAt DateTime    @default(now())
@@ -128,13 +132,28 @@ model Subscription {
   expiresAt DateTime
 }
 
+model Driver {
+  id            String       @id @default(uuid())
+  teamId        String
+  team          Team         @relation(fields: [teamId], references: [id])
+  name          String
+  status        DriverStatus @default(DISPONIBLE)
+  photoUrl      String
+  licenseNumber String
+  addressId     String
+  address       Address      @relation(fields: [addressId], references: [id])
+  contacts      Contact[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
 model Vehicle {
   id        String        @id @default(uuid())
   teamId    String
   team      Team          @relation(fields: [teamId], references: [id])
   plate     String        @unique
   brand     String
-  year      Int
+  year      String
   vin       String?
   model     String
   type      String
@@ -150,6 +169,12 @@ enum VehicleStatus {
   MANTENIMIENTO
   CANCELADO
   DESUSO
+}
+
+enum DriverStatus {
+  DISPONIBLE
+  EN_VIAJE
+  DESACTIVADO
 }
 
 enum SubscriptionStatus {

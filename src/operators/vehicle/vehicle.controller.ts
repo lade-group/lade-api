@@ -12,6 +12,7 @@ import { VehicleService } from './vehicle.service';
 import { CreateVehicleDto } from '../dto/create-vehicle.dto';
 import { UpdateVehicleDto } from '../dto/update-vehicle.dto';
 import { ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 
 @Controller('vehicle')
 export class VehicleController {
@@ -35,25 +36,37 @@ export class VehicleController {
     @Query('status') status?: string,
     @Query('type') type?: string,
   ) {
-    if (!teamId) {
-      return {
-        data: [],
-        total: 0,
-      };
-    }
-
-    const { data: vehicles, total } = await this.vehicleService.findAll({
+    const filters = {
       teamId,
       skip: parseInt(skip, 10) || 0,
       take: parseInt(take, 10) || 10,
-      status,
-      type,
-    });
-
-    return {
-      data: vehicles,
-      total,
+      status: status?.trim() || undefined,
+      type: type?.trim() || undefined,
     };
+
+    const result = await this.vehicleService.findAll(filters);
+    return result;
+  }
+
+  @Get('filters')
+  @ApiOperation({ summary: 'Obtener filtros disponibles para vehículos' })
+  @ApiOkResponse({
+    description: 'Lista de opciones de estatus y tipos de vehículos',
+    schema: {
+      example: {
+        statusOptions: [
+          'DISPONIBLE',
+          'EN_USO',
+          'MANTENIMIENTO',
+          'CANCELADO',
+          'DESUSO',
+        ],
+        typeOptions: ['Camión', 'Van', 'Pickup'],
+      },
+    },
+  })
+  async getFilters() {
+    return this.vehicleService.getFilters();
   }
 
   @Get(':id')

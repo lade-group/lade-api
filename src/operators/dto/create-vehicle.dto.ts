@@ -18,9 +18,9 @@ export class CreateVehicleDto {
   @IsString()
   brand: string;
 
-  @ApiProperty({ example: 2021, description: 'Año del vehículo' })
-  @IsInt()
-  year: number;
+  @ApiProperty({ example: '2021', description: 'Año del vehículo' })
+  @IsString()
+  year: string;
 
   @ApiProperty({
     example: 'Camión',

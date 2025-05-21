@@ -19,8 +19,17 @@ export class VehicleService {
     take?: number;
   }) {
     const where: any = { teamId: params.teamId };
-    if (params.status) where.status = params.status;
-    if (params.type) where.type = params.type;
+
+    if (params.status) {
+      where.status = params.status.toUpperCase();
+    }
+
+    if (params.type) {
+      where.type = {
+        contains: params.type,
+        mode: 'insensitive',
+      };
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.vehicle.findMany({
@@ -33,6 +42,25 @@ export class VehicleService {
     ]);
 
     return { data, total };
+  }
+
+  async getFilters() {
+    const types = await this.prisma.vehicle.findMany({
+      distinct: ['type'],
+      select: { type: true },
+      orderBy: { type: 'asc' },
+    });
+
+    return {
+      statusOptions: [
+        'DISPONIBLE',
+        'EN_USO',
+        'MANTENIMIENTO',
+        'CANCELADO',
+        'DESUSO',
+      ],
+      typeOptions: types.map((t) => t.type),
+    };
   }
 
   async findOne(id: string) {

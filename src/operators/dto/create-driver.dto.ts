@@ -1,5 +1,9 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsString, ValidateNested } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { DriverStatus, ContactType } from '@prisma/client';
+import { CreateAddressDto } from '@/geolocation/dto/create-address.dto';
+import { ContactDto } from '@/customer/dto/create-contact.dto';
 
 export class CreateDriverDto {
   @ApiProperty({
@@ -10,28 +14,31 @@ export class CreateDriverDto {
   name: string;
 
   @ApiProperty({
-    example: 'LIC12345678',
-    description: 'Número de licencia de conducir',
+    example: 'https://miapp.com/photo.jpg',
+    description: 'Foto del conductor',
   })
   @IsString()
-  license: string;
+  photoUrl: string;
 
-  @ApiProperty({ example: '5512345678', description: 'Teléfono del conductor' })
+  @ApiProperty({ example: '1234567890', description: 'Número de licencia' })
   @IsString()
-  phone: string;
+  licenseNumber: string;
 
-  @ApiPropertyOptional({
-    example: 'juan.perez@email.com',
-    description: 'Correo electrónico del conductor (opcional)',
-  })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
+  @ApiProperty()
+  @ValidateNested()
+  @Type(() => CreateAddressDto)
+  address: CreateAddressDto;
 
-  @ApiProperty({
-    example: 'team-uuid-123',
-    description: 'ID del equipo al que pertenece el conductor',
-  })
+  @ApiProperty({ type: [ContactDto] })
+  @ValidateNested({ each: true })
+  @Type(() => ContactDto)
+  contacts: ContactDto[];
+
+  @ApiProperty({ example: 'team-uuid-123', description: 'ID del equipo' })
   @IsString()
   teamId: string;
+
+  @ApiProperty({ enum: DriverStatus, example: 'DISPONIBLE' })
+  @IsEnum(DriverStatus)
+  status: DriverStatus;
 }
