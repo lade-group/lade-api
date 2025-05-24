@@ -7,6 +7,7 @@ import {
   Get,
   Query,
   Body,
+  BadRequestException
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -48,6 +49,9 @@ export class ClientController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
+    if (!teamId) {
+      throw new BadRequestException('El teamId es obligatorio.');
+    }
     return this.clientService.getPaginatedClients(
       parseInt(page) || 1,
       parseInt(limit) || 10,
