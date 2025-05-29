@@ -1,8 +1,9 @@
 // team-access.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { HandlePrismaError } from '@/utils/decorators/handle-prisma-errors';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class TeamAccessService {
@@ -61,5 +62,30 @@ export class TeamAccessService {
     //   });
     // });
     // return { message: 'Invitation accepted' };
+  }
+
+  async getTeamInvitations(teamId: string) {
+    return this.prisma.teamInvitation.findMany({
+      where: { teamId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async inviteSingleUserToTeam(teamId: string, email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      const alreadyInTeam = await this.prisma.usersOnTeams.findUnique({
+        where: { userId_teamId: { userId: user.id, teamId } },
+      });
+      if (alreadyInTeam)
+        throw new ForbiddenException('El usuario ya está en el equipo');
+
+      return this.prisma.usersOnTeams.create({
+        data: { teamId, userId: user.id, rol: 'USER' },
+      });
+    }
+
+    return this.prisma.teamInvitation.create({ data: { teamId, email } });
   }
 }

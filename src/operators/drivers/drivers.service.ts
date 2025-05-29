@@ -64,6 +64,9 @@ export class DriverService {
   }
 
   async findOne(id: string) {
-    return this.prisma.driver.findUnique({ where: { id } });
+    return this.prisma.driver.findUnique({
+      where: { id },
+      include: { address: true, contacts: true },
+    });
   }
 }

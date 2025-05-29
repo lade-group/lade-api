@@ -12,6 +12,7 @@ import {
 import { Auth } from '@/utils/decorators/auth.decorator';
 import { UsersService } from '@/users/users/users.service';
 import { UpdateUserDto } from '@/users/dto/update-user.dto';
+import { Role } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
@@ -33,5 +34,30 @@ export class UsersController {
       ...jwtUser,
       ...user,
     };
+  }
+
+  @Auth()
+  @Get(':teamId/users/:userId')
+  getUserDetails(
+    @Param('teamId') teamId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.usersService.getTeamUserDetail(teamId, userId);
+  }
+
+  @Auth('OWNER')
+  @Patch(':teamId/users/:userId/role')
+  changeUserRole(
+    @Param('teamId') teamId: string,
+    @Param('userId') userId: string,
+    @Body() body: { role: Role },
+    @Req() req,
+  ) {
+    return this.usersService.updateUserRole(
+      teamId,
+      userId,
+      body.role,
+      req.user.userId,
+    );
   }
 }

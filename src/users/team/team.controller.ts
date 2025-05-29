@@ -31,7 +31,7 @@ export class TeamController {
     return this.teamService.create({ ...dto, userId });
   }
 
-  @Auth('OWNER', 'ADMIN')
+  @Auth()
   @Get(':teamId/users')
   getUsers(@Param('teamId') teamId: string) {
     return this.teamService.getTeamUsers(teamId);
