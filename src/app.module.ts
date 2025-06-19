@@ -5,15 +5,19 @@ import { AccountsModule } from './users/accounts.module';
 import { GeolocationsModule } from './geolocation/geolocation.module';
 import { CustomersModule } from './customer/customers.module';
 import { OperatorsModule } from './operators/operators.module';
+import { S3Module } from './infraestructure/S3/s3.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     AccountsModule,
     CustomersModule,
     OperatorsModule,
     GeolocationsModule,
     CommonModule,
+    S3Module,
   ],
 })
 export class AppModule {}

@@ -7,7 +7,7 @@ import {
   Get,
   Query,
   Body,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -31,6 +31,7 @@ export class ClientController {
   @ApiBody({ type: CreateClientDto })
   @ApiResponse({ status: 201, description: 'Cliente creado exitosamente' })
   async create(@Body() dto: CreateClientDto) {
+    console.log(dto);
     return this.clientService.create(dto);
   }
 

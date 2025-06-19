@@ -27,6 +27,88 @@ model User {
   teams UsersOnTeams[]
 }
 
+model RoutePoint {
+  id   String @id @default(uuid())
+  name String
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  coordsLat Float
+  coordsLng Float
+
+  teamId   String
+  clientId String
+  team     Team   @relation(fields: [teamId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id])
+  stops    Stop[]
+
+  createdAt DateTime @default(now())
+}
+
+model Route {
+  id      String      @id @default(uuid())
+  name    String
+  code    String      @unique
+  company String
+  status  RouteStatus @default(ACTIVE)
+
+  teamId   String
+  clientId String
+  team     Team   @relation(fields: [teamId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id])
+
+  stops Stop[]
+  trips Trip[]
+
+  createdAt DateTime @default(now())
+}
+
+model Stop {
+  id    String @id @default(uuid())
+  order Int
+
+  routeId String
+  pointId String
+  route   Route      @relation(fields: [routeId], references: [id])
+  point   RoutePoint @relation(fields: [pointId], references: [id])
+}
+
+model Trip {
+  id        String     @id @default(uuid())
+  teamId    String
+  clientId  String
+  driverId  String
+  vehicleId String
+  routeId   String
+  price     Float
+  status    TripStatus
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  team    Team    @relation(fields: [teamId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+  driver  Driver  @relation(fields: [driverId], references: [id])
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  route   Route   @relation(fields: [routeId], references: [id])
+  cargos  Cargo[]
+}
+
+model Cargo {
+  id        String   @id @default(uuid())
+  tripId    String
+  name      String
+  weightKg  Float
+  imageUrl  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
 model Team {
   id String @id @default(uuid())
 
@@ -43,6 +125,9 @@ model Team {
   Subscription   Subscription?
   Vehicle        Vehicle[]
   Driver         Driver[]
+  RoutePoint     RoutePoint[]
+  Route          Route[]
+  Trip           Trip[]
 }
 
 model UsersOnTeams {
@@ -68,9 +153,10 @@ model Address {
   postal_code     String
   created_at      DateTime @default(now())
 
-  teams  Team[]
-  Client Client[]
-  Driver Driver[]
+  teams      Team[]
+  Client     Client[]
+  Driver     Driver[]
+  RoutePoint RoutePoint[]
 }
 
 model Client {
@@ -94,9 +180,12 @@ model Client {
 
   contacts Contact[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+  RoutePoint RoutePoint[]
+  Route      Route[]
+  Trip       Trip[]
 }
 
 model TeamInvitation {
@@ -145,6 +234,7 @@ model Driver {
   contacts      Contact[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  Trip          Trip[]
 }
 
 model Vehicle {
@@ -161,6 +251,7 @@ model Vehicle {
   imageUrl  String
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+  Trip      Trip[]
 }
 
 enum VehicleStatus {
@@ -201,4 +292,18 @@ enum ContactType {
   PHONE
   FAX
   OTHER
+}
+
+enum RouteStatus {
+  ACTIVE
+  DEACTIVATED
+  DELETED
+}
+
+enum TripStatus {
+  PREINICIALIZADO
+  EN_PROCESO
+  FINALIZADO_A_TIEMPO
+  FINALIZADO_TARDIO
+  CANCELADO
 }

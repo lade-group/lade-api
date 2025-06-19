@@ -49,7 +49,7 @@ export class DriverService {
         where,
         skip: params.skip,
         take: params.take,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { status: 'asc' },
       }),
       this.prisma.driver.count({ where }),
     ]);

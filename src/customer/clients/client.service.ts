@@ -35,10 +35,6 @@ export class ClientService {
           teamId: dto.teamId,
           addressId: address.id,
         },
-        include: {
-          address: true,
-          contacts: true,
-        },
       });
 
       return client;
