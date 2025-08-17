@@ -28,9 +28,15 @@ export class RolesGuard implements CanActivate {
     const teamId =
       request.params.teamId ||
       request.query.teamId ||
+      request.body?.teamId ||
       request.headers['x-current-team-id'];
 
+    console.log('RolesGuard - User:', user?.userId);
+    console.log('RolesGuard - TeamId:', teamId);
+    console.log('RolesGuard - Required roles:', requiredRoles);
+
     if (!user || !teamId) {
+      console.log('RolesGuard - Missing user or teamId');
       throw new ForbiddenException('User or teamId missing.');
     }
 

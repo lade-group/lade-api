@@ -19,12 +19,16 @@ model User {
   phone            String  @unique
   email            String  @unique
   password         String
+  photoUrl         String?
+  preferredName    String?
+  position         String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   teams UsersOnTeams[]
+  logs  Log[]          @relation("UserLogs")
 }
 
 model RoutePoint {
@@ -39,11 +43,13 @@ model RoutePoint {
 
   teamId   String
   clientId String
-  team     Team   @relation(fields: [teamId], references: [id])
-  client   Client @relation(fields: [clientId], references: [id])
+  team     Team             @relation(fields: [teamId], references: [id])
+  client   Client           @relation(fields: [clientId], references: [id])
+  status   RoutePointStatus @default(ACTIVE)
   stops    Stop[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Route {
@@ -82,18 +88,20 @@ model Trip {
   vehicleId String
   routeId   String
   price     Float
-  status    TripStatus
+  status    TripStatus @default(NO_INICIADO)
   startDate DateTime
   endDate   DateTime
+  notes     String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  team    Team    @relation(fields: [teamId], references: [id])
-  client  Client  @relation(fields: [clientId], references: [id])
-  driver  Driver  @relation(fields: [driverId], references: [id])
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
-  route   Route   @relation(fields: [routeId], references: [id])
+  team    Team     @relation(fields: [teamId], references: [id])
+  client  Client   @relation(fields: [clientId], references: [id])
+  driver  Driver   @relation(fields: [driverId], references: [id])
+  vehicle Vehicle  @relation(fields: [vehicleId], references: [id])
+  route   Route    @relation(fields: [routeId], references: [id])
   cargos  Cargo[]
+  invoice Invoice?
 }
 
 model Cargo {
@@ -114,10 +122,14 @@ model Team {
 
   name     String
   logo     String
-  joinCode String? @unique
+  joinCode String?    @unique
+  status   TeamStatus @default(ACTIVE)
 
   addressId String
   address   Address @relation(fields: [addressId], references: [id])
+
+  // Datos fiscales para Facturapi
+  fiscalData TeamFiscalData?
 
   users          UsersOnTeams[]
   Client         Client[]
@@ -128,6 +140,29 @@ model Team {
   RoutePoint     RoutePoint[]
   Route          Route[]
   Trip           Trip[]
+  Invoice        Invoice[]
+  Log            Log[]            @relation("TeamLogs")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Log {
+  id        String    @id @default(uuid())
+  action    LogAction
+  entity    LogEntity
+  entityId  String
+  userId    String
+  user      User      @relation("UserLogs", fields: [userId], references: [id])
+  teamId    String
+  team      Team      @relation("TeamLogs", fields: [teamId], references: [id])
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 model UsersOnTeams {
@@ -162,15 +197,25 @@ model Address {
 model Client {
   id String @id @default(uuid())
 
-  name        String
-  description String?
-  rfc         String
-  email       String
-  phone       String
-  cfdiUse     String
-  taxRegime   String
-  zipCode     String
-  status      ClientStatus @default(ACTIVE)
+  name         String
+  name_related String? // Nombre comercial o de referencia
+  description  String?
+  rfc          String
+  email        String
+  phone        String
+  cfdiUse      String
+  taxRegime    String
+  zipCode      String
+  status       ClientStatus @default(ACTIVE)
+
+  // Campos adicionales para logística y fletes
+  creditLimit            Float? // Límite de crédito
+  paymentTerms           String? // Condiciones de pago (30 días, contado, etc.)
+  preferredPaymentMethod String? // Método de pago preferido
+  businessType           String? // Tipo de negocio (importador, exportador, distribuidor, etc.)
+  industry               String? // Industria o sector
+  specialRequirements    String? // Requisitos especiales de transporte
+  notes                  String? // Notas adicionales
 
   addressId String
   address   Address @relation(fields: [addressId], references: [id])
@@ -232,26 +277,177 @@ model Driver {
   addressId     String
   address       Address      @relation(fields: [addressId], references: [id])
   contacts      Contact[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  Trip          Trip[]
+
+  // Campos adicionales para logística y gestión de conductores
+  curp             String? // CURP del conductor
+  rfc              String? // RFC del conductor
+  birthDate        DateTime? // Fecha de nacimiento
+  licenseExpiry    DateTime? // Fecha de vencimiento de licencia
+  medicalExpiry    DateTime? // Fecha de vencimiento del examen médico
+  emergencyContact String? // Contacto de emergencia
+  bloodType        String? // Tipo de sangre
+  allergies        String? // Alergias
+  specialNotes     String? // Notas especiales
+  experience       String? // Años de experiencia
+  certifications   String? // Certificaciones adicionales
+  salary           Float? // Salario
+  paymentMethod    String? // Método de pago preferido
+  bankAccount      String? // Información bancaria
+  documents        DriverDocument[] // Documentos del conductor
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Trip      Trip[]
+}
+
+model DriverDocument {
+  id         String    @id @default(uuid())
+  driverId   String
+  driver     Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  name       String // Nombre del documento (ej: "Licencia", "INE", "CURP")
+  type       String // Tipo de documento
+  url        String // URL del archivo en S3
+  fileName   String // Nombre original del archivo
+  fileSize   Int // Tamaño del archivo en bytes
+  mimeType   String // Tipo MIME del archivo
+  isRequired Boolean   @default(true) // Si es un documento requerido
+  isVerified Boolean   @default(false) // Si el documento ha sido verificado
+  expiresAt  DateTime? // Fecha de vencimiento del documento
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Vehicle {
-  id        String        @id @default(uuid())
-  teamId    String
-  team      Team          @relation(fields: [teamId], references: [id])
-  plate     String        @unique
-  brand     String
-  year      String
-  vin       String?
-  model     String
-  type      String
-  status    VehicleStatus @default(DISPONIBLE)
-  imageUrl  String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  Trip      Trip[]
+  id       String        @id @default(uuid())
+  teamId   String
+  team     Team          @relation(fields: [teamId], references: [id])
+  plate    String        @unique
+  brand    String
+  year     String
+  vin      String?
+  model    String
+  type     String
+  status   VehicleStatus @default(DISPONIBLE)
+  imageUrl String
+
+  // Campos adicionales para logística
+  capacity           String? // Capacidad de carga
+  fuelType           String? // Tipo de combustible
+  insuranceNumber    String? // Número de seguro
+  insuranceExpiry    DateTime? // Vencimiento del seguro
+  registrationExpiry DateTime? // Vencimiento de registro
+  lastMaintenance    DateTime? // Último mantenimiento
+  nextMaintenance    DateTime? // Próximo mantenimiento programado
+  mileage            Float? // Kilometraje
+  notes              String? // Notas adicionales
+
+  // Relaciones
+  documents   VehicleDocument[] // Documentos del vehículo
+  maintenance VehicleMaintenance[] // Historial de mantenimiento
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  Trip        Trip[]
+}
+
+model VehicleDocument {
+  id         String    @id @default(uuid())
+  vehicleId  String
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  name       String // Nombre del documento (ej: "Seguro", "Registro", "Manual")
+  type       String // Tipo de documento
+  url        String // URL del archivo en S3
+  fileName   String // Nombre original del archivo
+  fileSize   Int // Tamaño del archivo en bytes
+  mimeType   String // Tipo MIME del archivo
+  isRequired Boolean   @default(true) // Si es un documento requerido
+  isVerified Boolean   @default(false) // Si el documento ha sido verificado
+  expiresAt  DateTime? // Fecha de vencimiento del documento
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model VehicleMaintenance {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date        DateTime // Fecha del mantenimiento
+  type        String // Tipo de mantenimiento (preventivo, correctivo, etc.)
+  description String // Descripción del mantenimiento
+  cost        Float? // Costo del mantenimiento
+  mileage     Float? // Kilometraje al momento del mantenimiento
+  workshop    String? // Taller donde se realizó
+  notes       String? // Notas adicionales
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TeamFiscalData {
+  id     String @id @default(uuid())
+  teamId String @unique
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  // Datos básicos fiscales
+  rfc          String
+  legalName    String
+  taxSystem    String // Régimen fiscal (601, 603, etc.)
+  fiscalRegime String? // Régimen fiscal adicional
+
+  // Dirección fiscal
+  fiscalAddress Json // Dirección completa en formato JSON
+
+  // Configuración Facturapi
+  facturapiOrgId  String? // ID de la organización en Facturapi
+  facturapiApiKey String? // API Key de Facturapi (encriptada)
+
+  // Configuración de facturación
+  defaultPaymentForm   String @default("28") // Forma de pago por defecto
+  defaultPaymentMethod String @default("PUE") // Método de pago por defecto
+  defaultCfdiUse       String @default("G01") // Uso de CFDI por defecto
+
+  // Producto/servicio por defecto para facturación
+  defaultProductKey         String @default("78102200") // Clave SAT para servicios de transporte
+  defaultProductDescription String @default("Servicio de transporte de carga")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id     String @id @default(uuid())
+  tripId String @unique
+  teamId String
+  trip   Trip   @relation(fields: [tripId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  // Datos de la factura
+  invoiceNumber String? // Número de factura asignado por Facturapi
+  folio         String? // Folio fiscal
+  uuid          String? // UUID del CFDI
+
+  // Estado de la factura
+  status InvoiceStatus @default(DRAFT)
+
+  // Datos de Facturapi
+  facturapiInvoiceId String? // ID de la factura en Facturapi
+  facturapiPdfUrl    String? // URL del PDF en Facturapi
+  facturapiXmlUrl    String? // URL del XML en Facturapi
+
+  // Archivos locales (S3)
+  localPdfUrl String? // URL del PDF en S3
+  localXmlUrl String? // URL del XML en S3
+
+  // Datos de la factura
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  // Información adicional
+  notes       String?
+  cancelledAt DateTime?
+  cancelledBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum VehicleStatus {
@@ -301,9 +497,57 @@ enum RouteStatus {
 }
 
 enum TripStatus {
-  PREINICIALIZADO
+  NO_INICIADO
   EN_PROCESO
   FINALIZADO_A_TIEMPO
-  FINALIZADO_TARDIO
+  FINALIZADO_CON_RETRASO
   CANCELADO
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LogAction {
+  CREATE
+  UPDATE
+  DELETE
+  ACTIVATE
+  DEACTIVATE
+  REACTIVATE
+  TRANSFER_OWNERSHIP
+  REMOVE_USER
+  LEAVE_TEAM
+  UPLOAD_FILE
+  LOGIN
+  LOGOUT
+}
+
+enum LogEntity {
+  TEAM
+  USER
+  CLIENT
+  DRIVER
+  VEHICLE
+  TRIP
+  ROUTE
+  ADDRESS
+  CONTACT
+  DOCUMENT
+}
+
+enum RoutePointStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceStatus {
+  DRAFT // Borrador
+  PENDING // Pendiente de timbrado
+  STAMPED // Timbrada
+  CANCELLED // Cancelada
+  ERROR // Error en timbrado
 }

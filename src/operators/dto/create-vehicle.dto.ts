@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { VehicleStatus } from '@prisma/client';
 
@@ -54,4 +61,77 @@ export class CreateVehicleDto {
   })
   @IsString()
   imageUrl: string;
+
+  // Campos adicionales para logística
+  @ApiPropertyOptional({
+    example: '20 toneladas',
+    description: 'Capacidad de carga del vehículo',
+  })
+  @IsOptional()
+  @IsString()
+  capacity?: string;
+
+  @ApiPropertyOptional({
+    example: 'Diesel',
+    description: 'Tipo de combustible',
+  })
+  @IsOptional()
+  @IsString()
+  fuelType?: string;
+
+  @ApiPropertyOptional({
+    example: 'INS-123456',
+    description: 'Número de seguro',
+  })
+  @IsOptional()
+  @IsString()
+  insuranceNumber?: string;
+
+  @ApiPropertyOptional({
+    example: '2024-12-31T00:00:00.000Z',
+    description: 'Fecha de vencimiento del seguro',
+  })
+  @IsOptional()
+  @IsDateString()
+  insuranceExpiry?: string;
+
+  @ApiPropertyOptional({
+    example: '2024-12-31T00:00:00.000Z',
+    description: 'Fecha de vencimiento del registro',
+  })
+  @IsOptional()
+  @IsDateString()
+  registrationExpiry?: string;
+
+  @ApiPropertyOptional({
+    example: '2024-01-15T00:00:00.000Z',
+    description: 'Fecha del último mantenimiento',
+  })
+  @IsOptional()
+  @IsDateString()
+  lastMaintenance?: string;
+
+  @ApiPropertyOptional({
+    example: '2024-06-15T00:00:00.000Z',
+    description: 'Fecha del próximo mantenimiento programado',
+  })
+  @IsOptional()
+  @IsDateString()
+  nextMaintenance?: string;
+
+  @ApiPropertyOptional({
+    example: 50000.5,
+    description: 'Kilometraje actual del vehículo',
+  })
+  @IsOptional()
+  @IsNumber()
+  mileage?: number;
+
+  @ApiPropertyOptional({
+    example: 'Vehículo en excelente estado',
+    description: 'Notas adicionales sobre el vehículo',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

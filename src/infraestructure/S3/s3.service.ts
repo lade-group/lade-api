@@ -8,45 +8,55 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { getS3Config } from '../../config/s3.config';
 
 @Injectable()
 export class DmsService {
-  private client: S3Client;
+  private client: S3Client | null;
+  private bucketName: string;
 
   constructor(private config: ConfigService) {
-    const accessKeyId = this.config.get<string>('S3_ACCESS_KEY');
-    const secretAccessKey = this.config.get<string>('S3_SECRET_ACCESS_KEY');
-    const region = this.config.get<string>('S3_REGION');
+    try {
+      const s3Config = getS3Config(this.config);
 
-    console.log(accessKeyId);
-    console.log(secretAccessKey);
-    console.log(region);
+      this.client = new S3Client({
+        region: s3Config.region,
+        credentials: {
+          accessKeyId: s3Config.accessKeyId,
+          secretAccessKey: s3Config.secretAccessKey,
+        },
+      });
 
-    if (!accessKeyId || !secretAccessKey || !region) {
-      throw new Error('AWS credentials or region are not set');
+      this.bucketName = s3Config.bucketName;
+      console.log(
+        'DmsService initialized successfully with bucket:',
+        this.bucketName,
+      );
+    } catch (error) {
+      console.error('Failed to initialize DmsService:', error.message);
+      // No lanzar error, permitir que la aplicación continúe sin S3
+      this.client = null;
+      this.bucketName = '';
     }
-
-    this.client = new S3Client({
-      region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
   }
 
   async uploadSingleFile({
     file,
     isPublic = true,
+    customKey,
   }: {
     file: Express.Multer.File;
     isPublic: boolean;
+    customKey?: string;
   }) {
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
+
     try {
-      const bucketName = this.config.get<string>('S3_BUCKET_NAME');
-      const key = `${uuidv4()}`;
+      const key = customKey || `${uuidv4()}`;
       const command = new PutObjectCommand({
-        Bucket: bucketName,
+        Bucket: this.bucketName,
         Key: key,
         Body: file.buffer,
         ContentType: file.mimetype,
@@ -69,17 +79,17 @@ export class DmsService {
   }
 
   async getFileUrl(key: string) {
-    const bucketName = this.config.get<string>('S3_BUCKET_NAME');
-
-    return { url: `https://${bucketName}.s3.amazonaws.com/${key}` };
+    return { url: `https://${this.bucketName}.s3.amazonaws.com/${key}` };
   }
 
   async getPresignedSignedUrl(key: string) {
-    const bucketName = this.config.get<string>('S3_BUCKET_NAME');
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
 
     try {
       const command = new GetObjectCommand({
-        Bucket: bucketName,
+        Bucket: this.bucketName,
         Key: key,
       });
 
@@ -94,11 +104,14 @@ export class DmsService {
   }
 
   async deleteFile(key: string) {
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
+
     try {
-      const bucketName = this.config.get<string>('S3_BUCKET_NAME');
-      console.log(bucketName);
+      console.log('Deleting file from bucket:', this.bucketName);
       const command = new DeleteObjectCommand({
-        Bucket: bucketName,
+        Bucket: this.bucketName,
         Key: key,
       });
 
@@ -108,5 +121,113 @@ export class DmsService {
     } catch (error) {
       throw new InternalServerErrorException(error);
     }
+  }
+
+  // Métodos adicionales para el componente FileUpload
+  isServiceConfigured(): boolean {
+    try {
+      getS3Config(this.config);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  validateFileType(fileName: string, allowedTypes: string[]): boolean {
+    const extension = fileName.toLowerCase().split('.').pop();
+    return allowedTypes.includes(extension || '');
+  }
+
+  generateFileKey(folder: string, fileName: string, entityId?: string): string {
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const extension = fileName.split('.').pop();
+
+    if (entityId) {
+      return `${folder}/${entityId}/${timestamp}-${randomString}.${extension}`;
+    }
+
+    return `${folder}/${timestamp}-${randomString}.${extension}`;
+  }
+
+  async generateUploadUrl(
+    key: string,
+    contentType: string,
+    expiresIn: number = 3600,
+  ): Promise<{ uploadUrl: string; key: string }> {
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    const uploadUrl = await getSignedUrl(this.client, command, {
+      expiresIn,
+    });
+
+    return {
+      uploadUrl,
+      key,
+    };
+  }
+
+  async generateDownloadUrl(
+    key: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    return await getSignedUrl(this.client, command, {
+      expiresIn,
+    });
+  }
+
+  /**
+   * Sube un archivo directamente a S3
+   */
+  async uploadFile(
+    key: string,
+    buffer: Buffer,
+    contentType: string,
+    metadata?: Record<string, string>,
+  ): Promise<string> {
+    if (!this.client) {
+      throw new InternalServerErrorException('S3 service is not configured');
+    }
+
+    try {
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        Metadata: metadata,
+      });
+
+      await this.client.send(command);
+
+      // Retornar URL pública directa
+      return `https://${this.bucketName}.s3.amazonaws.com/${key}`;
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  /**
+   * Obtiene el nombre del bucket
+   */
+  getBucketName(): string {
+    return this.bucketName;
   }
 }

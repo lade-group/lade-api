@@ -6,6 +6,8 @@ import { GeolocationsModule } from './geolocation/geolocation.module';
 import { CustomersModule } from './customer/customers.module';
 import { OperatorsModule } from './operators/operators.module';
 import { S3Module } from './infraestructure/S3/s3.module';
+import { LogModule } from './common/modules/log.module';
+import { InvoiceModule } from './payments/invoices/invoice.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { S3Module } from './infraestructure/S3/s3.module';
     GeolocationsModule,
     CommonModule,
     S3Module,
+    LogModule,
+    InvoiceModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,12 @@
 // dto/create-client.dto.ts
-import { IsEmail, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsNumber,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -10,6 +17,11 @@ export class CreateClientDto {
   @ApiProperty()
   @IsString()
   name: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name_related?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -43,6 +55,51 @@ export class CreateClientDto {
   @ApiProperty()
   @IsString()
   teamId: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['ACTIVE', 'CANCELLED', 'DELETED'],
+    default: 'ACTIVE',
+  })
+  @IsOptional()
+  @IsEnum(['ACTIVE', 'CANCELLED', 'DELETED'])
+  status?: 'ACTIVE' | 'CANCELLED' | 'DELETED';
+
+  // Campos adicionales para logística y fletes
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  creditLimit?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  paymentTerms?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  preferredPaymentMethod?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  businessType?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  specialRequirements?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @ApiProperty()
   @ValidateNested()

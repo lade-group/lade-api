@@ -6,9 +6,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { CreateTeamDto } from '../dto/create-team.dto';
+import { UpdateTeamDto } from '../dto/update-team.dto';
+import { UpdateAddressDto } from '../dto/update-address.dto';
 import { AddressService } from '@/geolocation/address/address.service';
 import { HandlePrismaError } from '@/utils/decorators/handle-prisma-errors';
 import { TeamAccessService } from './access.service';
+import { DmsService } from '@/infraestructure/S3/s3.service';
 
 @Injectable()
 export class TeamService {
@@ -16,6 +19,7 @@ export class TeamService {
     private prisma: PrismaService,
     private readonly addressService: AddressService,
     private readonly accessService: TeamAccessService,
+    private readonly dmsService: DmsService,
   ) {}
 
   /**
@@ -25,16 +29,38 @@ export class TeamService {
    * @returns The created team and address
    */
   @HandlePrismaError()
-  async create(createTeamDto: CreateTeamDto) {
+  async create(createTeamDto: CreateTeamDto, logoFile?: Express.Multer.File) {
     const { name, logo, address, invites = [], userId } = createTeamDto;
-
+    console.log('createTeamDto', createTeamDto);
     return this.prisma.$transaction(async (tx) => {
       const createdAddress = await this.addressService.create(address, tx);
-
+      console.log('logoFile', logoFile);
+      // Manejar subida de logo si existe
+      let logoUrl = logo;
+      if (logoFile) {
+        try {
+          const key = this.dmsService.generateFileKey(
+            'teams',
+            logoFile.originalname,
+            userId,
+          );
+          logoUrl = await this.dmsService.uploadFile(
+            key,
+            logoFile.buffer,
+            logoFile.mimetype,
+            { originalName: logoFile.originalname },
+          );
+        } catch (uploadError) {
+          console.error('Error uploading logo:', uploadError);
+          // Continuar sin el logo si falla la subida
+          logoUrl = '';
+        }
+      }
+      console.log('logoUrl', logoUrl);
       const createdTeam = await tx.team.create({
         data: {
           name,
-          logo: 'imagen guardada', // 👈 placeholder fijo
+          logo: logoUrl || '',
           address: {
             connect: { id: createdAddress.id },
           },
@@ -80,8 +106,11 @@ export class TeamService {
    * @returns The updated team
    */
   @HandlePrismaError()
-  async updateTeam(teamId: string, userId: string, data: any) {
-    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+  async updateTeam(teamId: string, userId: string, data: UpdateTeamDto) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: { address: true },
+    });
     if (!team) throw new NotFoundException('Team not found');
 
     const owner = await this.prisma.usersOnTeams.findUnique({
@@ -94,6 +123,167 @@ export class TeamService {
     return this.prisma.team.update({
       where: { id: teamId },
       data,
+      include: { address: true },
+    });
+  }
+
+  /**
+   * Gets team information by ID. Only team members can access.
+   *
+   * @param teamId - ID of the team
+   * @param userId - ID of the requesting user
+   * @returns The team with address information
+   */
+  @HandlePrismaError()
+  async getTeamById(teamId: string, userId: string) {
+    const membership = await this.prisma.usersOnTeams.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
+
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        address: true,
+        users: {
+          include: {
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) throw new NotFoundException('Team not found');
+    return team;
+  }
+
+  /**
+   * Deactivates a team (soft delete). Only OWNER can perform this action.
+   *
+   * @param teamId - ID of the team
+   * @param userId - ID of the acting user
+   * @returns Success message
+   */
+  @HandlePrismaError()
+  async deactivateTeam(teamId: string, userId: string) {
+    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    const owner = await this.prisma.usersOnTeams.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+    });
+    if (!owner || owner.rol !== 'OWNER') {
+      throw new ForbiddenException('Only OWNER can deactivate the team');
+    }
+
+    await this.prisma.team.update({
+      where: { id: teamId },
+      data: { status: 'INACTIVE' },
+    });
+
+    return { message: 'Team deactivated successfully' };
+  }
+
+  /**
+   * Reactivates a team. Only OWNER can perform this action.
+   *
+   * @param teamId - ID of the team
+   * @param userId - ID of the acting user
+   * @returns Success message
+   */
+  @HandlePrismaError()
+  async reactivateTeam(teamId: string, userId: string) {
+    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    const owner = await this.prisma.usersOnTeams.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+    });
+    if (!owner || owner.rol !== 'OWNER') {
+      throw new ForbiddenException('Only OWNER can reactivate the team');
+    }
+
+    await this.prisma.team.update({
+      where: { id: teamId },
+      data: { status: 'ACTIVE' },
+    });
+
+    return { message: 'Team reactivated successfully' };
+  }
+
+  /**
+   * Suspends a team. Only OWNER can perform this action.
+   *
+   * @param teamId - ID of the team
+   * @param userId - ID of the acting user
+   * @returns Success message
+   */
+  @HandlePrismaError()
+  async suspendTeam(teamId: string, userId: string) {
+    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    const owner = await this.prisma.usersOnTeams.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+    });
+    if (!owner || owner.rol !== 'OWNER') {
+      throw new ForbiddenException('Only OWNER can suspend the team');
+    }
+
+    await this.prisma.team.update({
+      where: { id: teamId },
+      data: { status: 'SUSPENDED' },
+    });
+
+    return { message: 'Team suspended successfully' };
+  }
+
+  /**
+   * Updates team address. Only OWNER can perform this action.
+   *
+   * @param teamId - ID of the team
+   * @param userId - ID of the acting user
+   * @param addressData - Address data to update
+   * @returns The updated team with address
+   */
+  @HandlePrismaError()
+  async updateTeamAddress(
+    teamId: string,
+    userId: string,
+    addressData: UpdateAddressDto,
+  ) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: { address: true },
+    });
+    if (!team) throw new NotFoundException('Team not found');
+
+    const owner = await this.prisma.usersOnTeams.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+    });
+    if (!owner || owner.rol !== 'OWNER') {
+      throw new ForbiddenException('Only OWNER can update the team address');
+    }
+
+    // Update the address
+    await this.prisma.address.update({
+      where: { id: team.addressId },
+      data: addressData,
+    });
+
+    // Return the updated team with address
+    return this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: { address: true },
     });
   }
 
@@ -150,20 +340,27 @@ export class TeamService {
   }
 
   async getTeamsForUser(userId: string) {
-    console.log(userId);
-    return this.prisma.usersOnTeams.findMany({
-      where: { userId },
-      include: {
-        team: {
-          include: {
-            address: true,
+    console.log('getTeamsForUser called with userId:', userId);
+    try {
+      const teams = await this.prisma.usersOnTeams.findMany({
+        where: { userId },
+        include: {
+          team: {
+            include: {
+              address: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+      console.log('Found teams:', teams);
+      return teams;
+    } catch (error) {
+      console.error('Error in getTeamsForUser:', error);
+      throw error;
+    }
   }
 
   /**

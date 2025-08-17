@@ -8,6 +8,7 @@ import {
   Param,
   Delete,
   Request,
+  Put,
 } from '@nestjs/common';
 import { Auth } from '@/utils/decorators/auth.decorator';
 import { UsersService } from '@/users/users/users.service';
@@ -22,6 +23,19 @@ export class UsersController {
   @Patch('profile')
   updateProfile(@Req() req, @Body() dto: UpdateUserDto) {
     return this.usersService.updateUser(req.user.userId, dto);
+  }
+
+  @Auth()
+  @Put('change-password')
+  async changePassword(
+    @Req() req,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.usersService.changePassword(
+      req.user.userId,
+      body.currentPassword,
+      body.newPassword,
+    );
   }
 
   @Auth()
