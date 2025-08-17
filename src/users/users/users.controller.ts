@@ -44,9 +44,18 @@ export class UsersController {
     const jwtUser = req.user;
     const user = await this.usersService.findByIdWithTeams(jwtUser.userId);
 
+    // Obtener el rol del usuario en el equipo actual
+    let userRole = 'USER'; // Por defecto
+    if (user?.teams && user.teams.length > 0) {
+      // Tomar el primer equipo como el actual (puedes ajustar esta lógica según tu necesidad)
+      const currentTeam = user.teams[0];
+      userRole = currentTeam.rol || 'USER';
+    }
+
     return {
       ...jwtUser,
       ...user,
+      role: userRole,
     };
   }
 

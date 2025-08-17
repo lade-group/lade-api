@@ -29,13 +29,11 @@ export class UserBaseDto {
   mother_last_name: string;
 
   @ApiProperty({ example: '5523456789' })
-  @IsInt()
+  @IsString()
   @IsNotEmpty()
   phone: string;
 
   @ApiProperty({ example: 'juan.perez@example.com' })
   @IsEmail()
   email: string;
-
-  
 }

@@ -20,6 +20,7 @@ export class AuthController {
 
   @Post('register')
   signIn(@Body() createUserDto: CreateUserDto) {
+    console.log('AuthController.register called with:', createUserDto);
     return this.authService.signIn(createUserDto);
   }
 

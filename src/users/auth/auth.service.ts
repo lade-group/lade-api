@@ -20,6 +20,7 @@ export class AuthService {
 
   async signIn(userData: CreateUserDto): Promise<AuthResponseDto> {
     try {
+      console.log('AuthService.signIn called with:', userData);
       const hashed = await this.bcryptService.hashPassword(userData.password);
 
       const newUser = await this.usersService.create({
@@ -27,8 +28,17 @@ export class AuthService {
         password: hashed,
       });
 
-      return this.buildAuthResponse(newUser);
+      console.log('User created successfully:', newUser.id);
+
+      const { hasTeams, ...sanitizedData } = this.buildAuthResponse(newUser);
+      const hasTeamsSanitized = false;
+
+      return {
+        ...sanitizedData,
+        hasTeams: hasTeamsSanitized,
+      };
     } catch (e) {
+      console.error('Error in signIn:', e);
       handlePrismaError(e);
     }
   }

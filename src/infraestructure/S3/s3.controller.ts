@@ -179,6 +179,7 @@ export class DmsController {
   }
 
   @Delete(':key')
+  @Auth()
   async deleteFile(@Param('key') key: string) {
     await this.s3Service.deleteFile(key);
     return { message: 'File deleted successfully' };
